@@ -107,22 +107,27 @@ BOOL CRemoteExplorerClientDlg::OnInitDialog()
     connectSocket.Create();
     ipAddress.SetWindowText(_T("127.0.0.1"));
     portNum.SetWindowText(_T("21000"));
-    CString CDrive;
-    CDrive = _T("C:");
-
-    CBitmap bmp;
-    bmp.LoadBitmap(IDB_TreeImageList);
-    static CImageList ImgList;
-    ImgList.Create(16, 16, ILC_COLOR24, 6, 0);
-    ImgList.Add(&bmp, RGB(255, 0, 0));
-    treeCtrl.SetImageList(&ImgList, TVSIL_NORMAL);
 
     InitComboBox();
     InitListCtrl();
 
+    GetSystemImage();
+
     return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
 
+void CRemoteExplorerClientDlg::GetSystemImage()
+{
+    // 운영체제가 관리하는 작은 아이콘 이미지 리스트와 연결
+    systemImageList = (HIMAGELIST)SHGetFileInfo((LPCTSTR)_T("C:\\"),
+        0, &info, sizeof(SHFILEINFO), SHGFI_SYSICONINDEX | SHGFI_SMALLICON);
+
+    imgSmallList.Attach(systemImageList);
+    imgSmallList.Add(AfxGetApp()->LoadIcon(IDR_MAINFRAME));
+
+    treeCtrl.SetImageList(&imgSmallList, LVSIL_NORMAL);
+    imgSmallList.Detach();
+}
 void CRemoteExplorerClientDlg::InitListCtrl()
 {
     CRect rect;
@@ -199,9 +204,6 @@ void CRemoteExplorerClientDlg::OnBnClickedConnectButton()
     {
         Data connectData;
         connectData.protocol = kConnect;
-        //strcpy_s(connectData.fileName, "C:");
-        //strcpy_s(connectData.filePath, "C:");
-
         char buffer[sizeof(connectData)];
         connectData.Serialize(connectData, buffer);
         connectSocket.Send(buffer, sizeof(buffer), 0);
@@ -271,13 +273,16 @@ void CRemoteExplorerClientDlg::OnTvnSelchangedTree(NMHDR *pNMHDR, LRESULT *pResu
 void CRemoteExplorerClientDlg::InitTreeCtrl(Data& file)
 {
     HTREEITEM hItem;
-    hItem = treeCtrl.InsertItem(CString(file.fileName), file.fileType, file.fileType);
-
+    SHFILEINFO sfi;
+    SHGetFileInfo((CString)file.filePath, 0, &sfi, sizeof(SHFILEINFO), SHGFI_USEFILEATTRIBUTES
+        | SHGFI_ICON);
+    //hItem = treeCtrl.InsertItem(CString(file.fileName), file.fileType, file.fileType);
+    hItem = treeCtrl.InsertItem(CString(file.fileName), sfi.iIcon, sfi.iIcon);
     treeCtrl.EnsureVisible(hItem);
 }
 
 // treeCtrl을 확장 시켜주는 함수
-void CRemoteExplorerClientDlg::ExpandTreeCtrl(HTREEITEM hItem,UINT nCode)
+void CRemoteExplorerClientDlg::ExpandTreeCtrl(HTREEITEM hItem, UINT nCode)
 {
     while (hItem != NULL)
     {
@@ -303,7 +308,15 @@ void CRemoteExplorerClientDlg::RefreshTreeCtrl(Data& file)
         {
             CString childName;
             childName = file.child[i];
-            treeCtrl.InsertItem(childName, file.fileType, file.fileType, hItem);
+            SHFILEINFO sfi;
+            CString childPath;
+            childPath = filePath;
+            childPath += "\\";
+            childPath = childName;
+
+            SHGetFileInfo(childPath, 0, &sfi, sizeof(SHFILEINFO), SHGFI_USEFILEATTRIBUTES
+                | SHGFI_ICON);
+            treeCtrl.InsertItem(childName, sfi.iIcon, sfi.iIcon, hItem);
         }
         AddListCtrl(file);
     }
@@ -329,8 +342,7 @@ void CRemoteExplorerClientDlg::GetChildListCtrl(Data& data)
             childPath += _T("\\");
             childPath += childName;
         }
-        //childSize = _T("10 KB");
-        
+
         switch (data.childType[i])
         {
         case kDirectory:
@@ -434,7 +446,7 @@ void CRemoteExplorerClientDlg::RefreshListCtrl(Data& receiveData)
         CString fileName;
         fileName = sendData.fileName;
         int checkIndex = CheckFilePath(filePath);
-        if (checkIndex != -1)
+        if (checkIndex != -1 && receiveData.fileType != kDisk)
         {
             listCtrl.InsertItem(0, _T(".."));
             listCtrl.SetItemText(0, 1, filePath.Left(checkIndex));
@@ -544,7 +556,15 @@ void CRemoteExplorerClientDlg::UpdateTreeCtrl(Data& data)
     {
         CString childName;
         childName = data.child[i];
-        treeCtrl.InsertItem(childName, current);
+
+        SHFILEINFO sfi;
+        CString childPath;
+        childPath = data.filePath;
+        childPath += "\\";
+        childPath = childName;
+        SHGetFileInfo(childPath, 0, &sfi, sizeof(SHFILEINFO), SHGFI_USEFILEATTRIBUTES
+            | SHGFI_ICON);
+        treeCtrl.InsertItem(childName, sfi.iIcon, sfi.iIcon, current);
     }
 }
 

@@ -65,11 +65,6 @@ void CListenSocket::InitData(CSocket* clientSocket, Data& receiveData)
 
         }
     }
-    /* CString filePath;
-     filePath = receiveData.filePath;
-     filePath += _T("*.*");
-     MakeData(clientSocket, receiveData, kConnect, filePath);*/
-
 }
 
 // 클라이언트에서 트리뷰를 클릭했을때 데이터를 만들어서 다시 전달해주는 함수

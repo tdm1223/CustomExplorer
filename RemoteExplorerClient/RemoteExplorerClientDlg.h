@@ -51,7 +51,7 @@ public:
     void AddListCtrl(Data & data);
     void InitTreeCtrl(Data & file);
     void ExpandTreeCtrl(HTREEITEM hItem, UINT nCode);
-
+    void GetSystemImage();
     std::map<CString, Data> cache; // 파일 경로와 그때의 Data를 가지고 있는 cache
     afx_msg void OnNMDblclkList(NMHDR *pNMHDR, LRESULT *pResult);
     void RefreshListCtrl(Data & file);
@@ -62,4 +62,8 @@ public:
     void UpdateTreeCtrl(Data & data);
     HTREEITEM FindItem(const CString & fileName, HTREEITEM hRoot);
     CComboBox comboBox;
+
+    CImageList imgSmallList;
+    HIMAGELIST systemImageList;
+    SHFILEINFO info;
 };
