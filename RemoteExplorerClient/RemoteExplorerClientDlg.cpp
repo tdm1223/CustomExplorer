@@ -318,7 +318,7 @@ void CRemoteExplorerClientDlg::RefreshTreeCtrl(Data& file)
                 | SHGFI_ICON);
             treeCtrl.InsertItem(childName, sfi.iIcon, sfi.iIcon, hItem);
         }
-        AddListCtrl(file);
+        GetChildListCtrl(file);
     }
 }
 
@@ -367,22 +367,6 @@ void CRemoteExplorerClientDlg::GetChildListCtrl(Data& data)
     }
 }
 
-// listCtrl에 가져온 데이터를 추가하는 함수
-void CRemoteExplorerClientDlg::AddListCtrl(Data& data)
-{
-    GetChildListCtrl(data);
-
-    CString filePath;
-    filePath = data.filePath;
-
-    int checkIndex = CheckFilePath(filePath);
-    if (checkIndex != -1)
-    {
-        listCtrl.InsertItem(0, _T(".."));
-        listCtrl.SetItemText(0, 1, filePath.Left(checkIndex));
-    }
-}
-
 // listCtrl 더블클릭시 실행하는 함수
 void CRemoteExplorerClientDlg::OnNMDblclkList(NMHDR *pNMHDR, LRESULT *pResult)
 {
@@ -426,7 +410,6 @@ void CRemoteExplorerClientDlg::OnNMDblclkList(NMHDR *pNMHDR, LRESULT *pResult)
     *pResult = 0;
 }
 
-// 더블클릭시 listctrl refresh
 void CRemoteExplorerClientDlg::RefreshListCtrl(Data& receiveData)
 {
     Data sendData;
@@ -446,7 +429,7 @@ void CRemoteExplorerClientDlg::RefreshListCtrl(Data& receiveData)
         CString fileName;
         fileName = sendData.fileName;
         int checkIndex = CheckFilePath(filePath);
-        if (checkIndex != -1 && receiveData.fileType != kDisk)
+        if (sendData.fileType != kDisk)
         {
             listCtrl.InsertItem(0, _T(".."));
             listCtrl.SetItemText(0, 1, filePath.Left(checkIndex));
@@ -530,7 +513,9 @@ void CRemoteExplorerClientDlg::UpdateListCtrl(Data& data)
     CString filePath;
     filePath = data.filePath;
 
+
     listCtrl.InsertItem(0, _T(".."));
+
     int idx = -1;
     // 한칸 올라간 filePath를 추가해준다.
     for (int i = filePath.GetLength() - 1; i >= 0; i--)

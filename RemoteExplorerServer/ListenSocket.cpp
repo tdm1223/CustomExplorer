@@ -140,9 +140,17 @@ void CListenSocket::MakeData(CSocket* clientSocket, Data& receiveData, Protocol 
     }
     else
     {
-        sendData.fileType = kDirectory;
+        if (filePath.GetLength() == 7)
+        {
+            sendData.fileType = kDisk;
+        }
+        else
+        {
+            sendData.fileType = kDirectory;
+        }
     }
-
+    
+    
     sendData.childLength = count;
     strcpy_s(sendData.filePath, receiveData.filePath);
     strcpy_s(sendData.fileName, receiveData.fileName);

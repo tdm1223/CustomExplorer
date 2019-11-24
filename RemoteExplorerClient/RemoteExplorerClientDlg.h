@@ -48,7 +48,6 @@ public:
     void OnTvnSelchangedTree(NMHDR *pNMHDR, LRESULT *pResult);
     void RefreshTreeCtrl(Data & file);
     void GetChildListCtrl(Data & data);
-    void AddListCtrl(Data & data);
     void InitTreeCtrl(Data & file);
     void ExpandTreeCtrl(HTREEITEM hItem, UINT nCode);
     void GetSystemImage();
