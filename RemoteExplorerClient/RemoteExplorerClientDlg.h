@@ -12,21 +12,56 @@ class CRemoteExplorerClientDlg : public CDialogEx
 {
     // 생성입니다.
 public:
+    struct SORTPARAM
+    {
+        int sortColumn;
+        bool sortDirect;
+        CListCtrl *list;
+    };
+    const int kDirectoryIcon = 4;
+
     CRemoteExplorerClientDlg(CWnd* pParent = NULL);	// 표준 생성자입니다.
+
+    afx_msg void OnBnClickedConnectButton();
+    afx_msg void InitComboBox();
+    void OnTvnSelchangedTree(NMHDR *pNMHDR, LRESULT *pResult);
+    void RefreshTreeCtrl(const Data & file);
+    void AddVirtualFolder(const CString filePath);
+    void GetChildListCtrl(const Data & data);
+    void InitTreeCtrl(const Data & data);
+    void ExpandTreeCtrl(HTREEITEM hItem, UINT nCode);
+    void GetSystemImage();
+    afx_msg void OnNMDblclkList(NMHDR *pNMHDR, LRESULT *pResult);
+    void RefreshListCtrl(const Data & file);
+    int CheckFilePath(const CString filePath);
+    void MakeData(const Data & data);
+    void UpdateListCtrl(const Data & data);
+    void UpdateTreeCtrl(const Data & data);
+    afx_msg void OnHdnItemClickList(NMHDR *pNMHDR, LRESULT *pResult);
+    static int CALLBACK CompareItem(const LPARAM lParam1, const LPARAM lParam2, const LPARAM lParamSort);
+    static int FileSizeConvertToInt(CString& strItem);
+
+    std::map<CString, Data> cache; // 파일 경로와 그때의 Data를 가지고 있는 cache
+    HTREEITEM ExpandItem(const CString & fileName, HTREEITEM rootItem);
+    HTREEITEM FindItem(const CString & fileName, HTREEITEM hRoot);
+    CComboBox comboBox;
+    BOOL ascending;
+    CImageList imgSmallList;
+    HIMAGELIST systemImageList;
+    SHFILEINFO info;
     CConnectSocket connectSocket;
-    // 대화 상자 데이터입니다.
-#ifdef AFX_DESIGN_TIME
-    enum { IDD = IDD_REMOTEEXPLORERCLIENT_DIALOG };
-#endif
+    CString message;
+    CListBox list;
+    CIPAddressCtrl ipAddress;
+    CEdit portNum;
+    CButton connectButton;
+    BOOL isConnect;
+    CTreeCtrl treeCtrl;
+    CListCtrl listCtrl;
 
 protected:
     virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 지원입니다.
-
-
-// 구현입니다.
-protected:
     HICON m_hIcon;
-
     // 생성된 메시지 맵 함수
     virtual BOOL OnInitDialog();
     void InitListCtrl();
@@ -34,35 +69,9 @@ protected:
     afx_msg void OnPaint();
     afx_msg HCURSOR OnQueryDragIcon();
     DECLARE_MESSAGE_MAP()
-public:
-    CString message;
-    CListBox list;
-    afx_msg void OnBnClickedConnectButton();
-    CIPAddressCtrl ipAddress;
-    CEdit portNum;
-    CButton connectButton;
-    BOOL isConnect;
-    CTreeCtrl treeCtrl;
-    CListCtrl listCtrl;
-    afx_msg void InitComboBox();
-    void OnTvnSelchangedTree(NMHDR *pNMHDR, LRESULT *pResult);
-    void RefreshTreeCtrl(Data & file);
-    void GetChildListCtrl(Data & data);
-    void InitTreeCtrl(Data & file);
-    void ExpandTreeCtrl(HTREEITEM hItem, UINT nCode);
-    void GetSystemImage();
-    std::map<CString, Data> cache; // 파일 경로와 그때의 Data를 가지고 있는 cache
-    afx_msg void OnNMDblclkList(NMHDR *pNMHDR, LRESULT *pResult);
-    void RefreshListCtrl(Data & file);
-    HTREEITEM ExpandItem(const CString & fileName, HTREEITEM rootItem);
-    int CheckFilePath(CString filePath);
-    void MakeData(Data & data);
-    void UpdateListCtrl(Data & data);
-    void UpdateTreeCtrl(Data & data);
-    HTREEITEM FindItem(const CString & fileName, HTREEITEM hRoot);
-    CComboBox comboBox;
 
-    CImageList imgSmallList;
-    HIMAGELIST systemImageList;
-    SHFILEINFO info;
+#ifdef AFX_DESIGN_TIME
+    enum { IDD = IDD_REMOTEEXPLORERCLIENT_DIALOG };
+#endif
+
 };
