@@ -1,5 +1,4 @@
 ﻿// RemoteExplorerServerDlg.cpp : 구현 파일
-//
 
 #include "stdafx.h"
 #include "afxdialogex.h"
@@ -32,24 +31,42 @@ protected:
 protected:
     DECLARE_MESSAGE_MAP()
 };
-
 CAboutDlg::CAboutDlg() : CDialogEx(IDD_ABOUTBOX)
 {
+}
+
+CRemoteExplorerServerDlg::CRemoteExplorerServerDlg(CWnd* pParent /*=NULL*/)
+    : CDialogEx(IDD_REMOTEEXPLORERSERVER_DIALOG, pParent)
+{
+    m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+}
+
+void CRemoteExplorerServerDlg::OnDestroy()
+{
+    CDialog::OnDestroy();
+
+    POSITION position;
+    position = listenSocket.clientSocketList.GetHeadPosition();
+    CClientSocket* client = NULL;
+
+    while (position != NULL)
+    {
+        client = (CClientSocket*)listenSocket.clientSocketList.GetNext(position);
+        if (client != NULL)
+        {
+            client->ShutDown();
+            client->Close();
+            delete client;
+        }
+    }
+
+    listenSocket.ShutDown();
+    listenSocket.Close();
 }
 
 void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 {
     CDialogEx::DoDataExchange(pDX);
-}
-
-BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
-END_MESSAGE_MAP()
-
-// CRemoteExplorerServerDlg 대화 상자
-CRemoteExplorerServerDlg::CRemoteExplorerServerDlg(CWnd* pParent /*=NULL*/)
-    : CDialogEx(IDD_REMOTEEXPLORERSERVER_DIALOG, pParent)
-{
-    m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
 
 void CRemoteExplorerServerDlg::DoDataExchange(CDataExchange* pDX)
@@ -58,12 +75,14 @@ void CRemoteExplorerServerDlg::DoDataExchange(CDataExchange* pDX)
     DDX_Control(pDX, IDC_LIST, list);
 }
 
+BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
+END_MESSAGE_MAP()
+
 BEGIN_MESSAGE_MAP(CRemoteExplorerServerDlg, CDialogEx)
     ON_WM_SYSCOMMAND()
     ON_WM_PAINT()
     ON_WM_QUERYDRAGICON()
 END_MESSAGE_MAP()
-
 
 // CRemoteExplorerServerDlg 메시지 처리기
 BOOL CRemoteExplorerServerDlg::OnInitDialog()
@@ -122,10 +141,6 @@ void CRemoteExplorerServerDlg::OnSysCommand(UINT nID, LPARAM lParam)
     }
 }
 
-// 대화 상자에 최소화 단추를 추가할 경우 아이콘을 그리려면
-//  아래 코드가 필요합니다.  문서/뷰 모델을 사용하는 MFC 응용 프로그램의 경우에는
-//  프레임워크에서 이 작업을 자동으로 수행합니다.
-
 void CRemoteExplorerServerDlg::OnPaint()
 {
     if (IsIconic())
@@ -151,32 +166,7 @@ void CRemoteExplorerServerDlg::OnPaint()
     }
 }
 
-// 사용자가 최소화된 창을 끄는 동안에 커서가 표시되도록 시스템에서
-//  이 함수를 호출합니다.
 HCURSOR CRemoteExplorerServerDlg::OnQueryDragIcon()
 {
     return static_cast<HCURSOR>(m_hIcon);
-}
-
-void CRemoteExplorerServerDlg::OnDestroy()
-{
-    CDialog::OnDestroy();
-
-    POSITION position;
-    position = listenSocket.clientSocketList.GetHeadPosition();
-    CClientSocket* client = NULL;
-
-    while (position != NULL)
-    {
-        client = (CClientSocket*)listenSocket.clientSocketList.GetNext(position);
-        if (client != NULL)
-        {
-            client->ShutDown();
-            client->Close();
-            delete client;
-        }
-    }
-
-    listenSocket.ShutDown();
-    listenSocket.Close();
 }

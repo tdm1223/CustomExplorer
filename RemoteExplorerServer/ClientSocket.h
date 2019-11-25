@@ -8,8 +8,9 @@ public:
     CClientSocket();
     virtual ~CClientSocket();
 
-    CAsyncSocket* listenSocket;
     virtual void OnClose(int nErrorCode);
-    void SetListenSocket(CAsyncSocket * pSocket);
     virtual void OnReceive(int nErrorCode);
+    void SetListenSocket(CAsyncSocket * pSocket);
+
+    CAsyncSocket* listenSocket;
 };

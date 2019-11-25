@@ -68,14 +68,14 @@ void CListenSocket::InitData(CSocket* clientSocket, Data& receiveData)
 }
 
 // 클라이언트에서 트리뷰를 클릭했을때 데이터를 만들어서 다시 전달해주는 함수
-void CListenSocket::RefreshTreeCtrl(CSocket* clientSocket, Data& receiveData)
+void CListenSocket::RefreshTreeCtrl(CSocket* clientSocket, const Data& receiveData)
 {
     CString filePath(receiveData.filePath);
     MakeData(clientSocket, receiveData, kRefreshTreeCtrl, filePath);
 }
 
 // 만들어진 데이터를 응답하는 함수
-void CListenSocket::ResponseData(CSocket* clientSocket, Data& receiveData)
+void CListenSocket::ResponseData(CSocket* clientSocket, const Data& receiveData)
 {
     CString filePath(receiveData.filePath);
     filePath += _T("\\*.*");
@@ -83,7 +83,7 @@ void CListenSocket::ResponseData(CSocket* clientSocket, Data& receiveData)
 }
 
 // 리스트뷰 클릭시 리스트 재조정 및 트리뷰에 반영
-void CListenSocket::RefreshListCtrl(CSocket* clientSocket, Data& receiveData)
+void CListenSocket::RefreshListCtrl(CSocket* clientSocket, const Data& receiveData)
 {
     CClientSocket* client = static_cast<CClientSocket*>(clientSocket);
 
@@ -97,7 +97,7 @@ void CListenSocket::RefreshListCtrl(CSocket* clientSocket, Data& receiveData)
 }
 
 // 데이터 만들어서 반환해주는 함수
-void CListenSocket::MakeData(CSocket* clientSocket, Data& receiveData, Protocol protocol, CString filePath)
+void CListenSocket::MakeData(CSocket* clientSocket, const Data& receiveData, const Protocol protocol, const CString filePath)
 {
     CClientSocket* client = static_cast<CClientSocket*>(clientSocket);
     Data sendData;
@@ -122,15 +122,15 @@ void CListenSocket::MakeData(CSocket* clientSocket, Data& receiveData, Protocol 
         else
         {
             sendData.childType[count] = kFile;
-            sendData.childSize[count] = static_cast<int>(finder.GetLength()) / 1024;
+            sendData.childSize[count] = finder.GetLength();
         }
         CTime cTime;
         finder.GetLastAccessTime(cTime);
         CString timeConvertToString = cTime.Format("%Y-%m-%d %H:%M:%S");
-        strcpy_s(sendData.childAccessTime[count], CStringA(timeConvertToString));
+        strcpy_s(sendData.childAccessTime[count], static_cast<CStringA>(timeConvertToString));
 
-        CString cs = finder.GetFileName();
-        strcpy_s(sendData.child[count++], CStringA(cs));
+        CString fileName = finder.GetFileName();
+        strcpy_s(sendData.child[count++], static_cast<CStringA>(fileName));
     }
 
     sendData.childLength = count;
@@ -140,7 +140,7 @@ void CListenSocket::MakeData(CSocket* clientSocket, Data& receiveData, Protocol 
     }
     else
     {
-        if (filePath.GetLength() == 7)
+        if (filePath.GetLength() == kDriveLength)
         {
             sendData.fileType = kDisk;
         }
@@ -149,8 +149,7 @@ void CListenSocket::MakeData(CSocket* clientSocket, Data& receiveData, Protocol 
             sendData.fileType = kDirectory;
         }
     }
-    
-    
+
     sendData.childLength = count;
     strcpy_s(sendData.filePath, receiveData.filePath);
     strcpy_s(sendData.fileName, receiveData.fileName);

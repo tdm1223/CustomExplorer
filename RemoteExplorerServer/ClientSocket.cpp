@@ -24,11 +24,6 @@ void CClientSocket::OnClose(int nErrorCode)
     cListenSocket->CloseClientSocket(this);
 }
 
-void CClientSocket::SetListenSocket(CAsyncSocket* socket)
-{
-    listenSocket = socket;
-}
-
 void CClientSocket::OnReceive(int nErrorCode)
 {
     CString listBoxString = _T("");
@@ -46,30 +41,36 @@ void CClientSocket::OnReceive(int nErrorCode)
         Data data;
         data.DeSerialize(data, buffer);
         CString filePath;
+        CString port;
+        port.Format(_T("%d"), portNumber);
         switch (data.protocol)
         {
         case kConnect:
-            serverDialog->list.AddString(_T("CONNECT"));
+            serverDialog->list.AddString(ipAddress + _T("::") + port + (" CONNECT"));
             serverSocket->InitData(this, data);
             break;
         case kRefreshTreeCtrl:
             filePath = data.filePath;
-            serverDialog->list.AddString(_T("CLICK TREE ") + filePath);
+            serverDialog->list.AddString(ipAddress + _T("::") + port + _T(" CLICK TREE ") + filePath);
             serverSocket->RefreshTreeCtrl(this, data);
             break;
         case kRefreshListCtrl:
             filePath = data.filePath;
-            serverDialog->list.AddString(_T("DOUBLE CLICK LISTCTRL ") + filePath);
+            serverDialog->list.AddString(ipAddress + _T("::") + port + _T(" DOUBLE CLICK LISTCTRL ") + filePath);
             serverSocket->RefreshListCtrl(this, data);
             break;
         case kRequestData:
             filePath = data.filePath;
-            serverDialog->list.AddString(_T("MAKE DATA ") + filePath+_T("\\*.*"));
+            serverDialog->list.AddString(ipAddress + _T("::") + port + _T(" MAKE DATA ") + filePath + _T("\\*.*"));
             serverSocket->ResponseData(this, data);
             break;
         }
 
     }
-
     CSocket::OnReceive(nErrorCode);
+}
+
+void CClientSocket::SetListenSocket(CAsyncSocket* socket)
+{
+    listenSocket = socket;
 }
