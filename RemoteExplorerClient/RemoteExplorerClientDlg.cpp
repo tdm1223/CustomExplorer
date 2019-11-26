@@ -329,12 +329,13 @@ void CRemoteExplorerClientDlg::UpdateListCtrl(const Data& receiveData)
         }
 
         // 트리뷰에도 반영
-        //HTREEITEM current = FindItem(fileName, treeCtrl.GetRootItem());
-        //while (current != treeCtrl.GetRootItem())
-        //{
-        //    treeCtrl.Expand(current, TVE_EXPAND);
-        //    current = treeCtrl.GetNextItem(current, TVGN_PARENT);
-        //}
+        HTREEITEM current = FindItem(fileName, treeCtrl.GetRootItem());
+        
+        /*while (current != treeCtrl.GetRootItem())
+        {
+            treeCtrl.Expand(current, TVE_EXPAND);
+            current = treeCtrl.GetNextItem(current, TVGN_PARENT);
+        }*/
     }
 }
 

@@ -65,8 +65,5 @@
     <Image Include="res\RemoteExplorerClient.ico">
       <Filter>리소스 파일</Filter>
     </Image>
-    <Image Include="res\TreeImage.bmp">
-      <Filter>리소스 파일</Filter>
-    </Image>
   </ItemGroup>
 </Project>

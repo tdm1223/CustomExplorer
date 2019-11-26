@@ -210,7 +210,6 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\RemoteExplorerClient.ico" />
-    <Image Include="res\TreeImage.bmp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Data\Data.vcxproj">
