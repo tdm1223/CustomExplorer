@@ -25,27 +25,23 @@ public:
     afx_msg void OnBnClickedConnectButton();
     afx_msg void InitComboBox();
     void OnTvnSelchangedTree(NMHDR *pNMHDR, LRESULT *pResult);
-    void RefreshTreeCtrl(const Data & file);
+    void UpdateTreeCtrl(const Data & file);
     void AddVirtualFolder(const CString filePath);
-    void GetChildListCtrl(const Data & data);
+    void DrawListCtrl(const Data & data);
     void InitTreeCtrl(const Data & data);
-    void ExpandTreeCtrl(HTREEITEM hItem, UINT nCode);
     void GetSystemImage();
     afx_msg void OnNMDblclkList(NMHDR *pNMHDR, LRESULT *pResult);
-    void RefreshListCtrl(const Data & file);
-    int CheckFilePath(const CString filePath);
-    void MakeData(const Data & data);
-    void UpdateListCtrl(const Data & data);
-    void UpdateTreeCtrl(const Data & data);
+    void UpdateListCtrl(const Data & file);
+    void ShowData(const Data & data);
     afx_msg void OnHdnItemClickList(NMHDR *pNMHDR, LRESULT *pResult);
     static int CALLBACK CompareItem(const LPARAM lParam1, const LPARAM lParam2, const LPARAM lParamSort);
     static int FileSizeConvertToInt(CString& strItem);
+    void OnComboBoxChanged();
 
-    std::map<CString, Data> cache; // 파일 경로와 그때의 Data를 가지고 있는 cache
-    HTREEITEM ExpandItem(const CString & fileName, HTREEITEM rootItem);
+    std::map<CString, Data> clientCache; // 파일 경로와 그때의 Data를 가지고 있는 cache
     HTREEITEM FindItem(const CString & fileName, HTREEITEM hRoot);
     CComboBox comboBox;
-    BOOL ascending;
+    BOOL sorting;
     CImageList imgSmallList;
     HIMAGELIST systemImageList;
     SHFILEINFO info;

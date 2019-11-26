@@ -3,8 +3,6 @@
 #include "RemoteExplorerClient.h"
 #include "RemoteExplorerClientDlg.h"
 
-// CConnectSocket
-
 CConnectSocket::CConnectSocket()
 {
 }
@@ -13,8 +11,6 @@ CConnectSocket::~CConnectSocket()
 {
 }
 
-
-// CConnectSocket 멤버 함수
 void CConnectSocket::OnClose(int nErrorCode)
 {
     ShutDown();
@@ -23,9 +19,7 @@ void CConnectSocket::OnClose(int nErrorCode)
     CSocket::OnClose(nErrorCode);
 
     AfxMessageBox(_T("서버와 연결 끊김"));
-    //::PostQuitMessage(0);
 }
-
 
 void CConnectSocket::OnReceive(int nErrorCode)
 {
@@ -33,23 +27,22 @@ void CConnectSocket::OnReceive(int nErrorCode)
     ::ZeroMemory(buffer, sizeof(buffer));
     if (Receive(buffer, sizeof(buffer), 0) > 0)
     {
-        Data data;
-        data.DeSerialize(data, buffer);
         CRemoteExplorerClientDlg* clientDialog = static_cast<CRemoteExplorerClientDlg*>(AfxGetMainWnd());
-
-        switch (data.protocol)
+        Data receiveData;
+        receiveData.DeSerialize(receiveData, buffer);
+        switch (receiveData.protocol)
         {
         case kConnect:
-            clientDialog->InitTreeCtrl(data);
+            clientDialog->InitTreeCtrl(receiveData);
             break;
-        case kRefreshTreeCtrl:
-            clientDialog->RefreshTreeCtrl(data);
+        case kUpdateTreeCtrl:
+            clientDialog->UpdateTreeCtrl(receiveData);
             break;
-        case kRefreshListCtrl:
-            clientDialog->RefreshListCtrl(data);
+        case kUpdateListCtrl:
+            clientDialog->UpdateListCtrl(receiveData);
             break;
         case kRequestData:
-            clientDialog->MakeData(data);
+            clientDialog->ShowData(receiveData);
             break;
         default: break;
         }

@@ -1,6 +1,4 @@
-﻿// RemoteExplorerClientDlg.cpp : 구현 파일
-
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include "RemoteExplorerClient.h"
 #include "RemoteExplorerClientDlg.h"
 #include "afxdialogex.h"
@@ -46,6 +44,7 @@ CRemoteExplorerClientDlg::CRemoteExplorerClientDlg(CWnd* pParent /*=NULL*/)
     m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
     isConnect = false;
 }
+
 void CRemoteExplorerClientDlg::OnBnClickedConnectButton()
 {
     CString ipAddr;
@@ -53,29 +52,34 @@ void CRemoteExplorerClientDlg::OnBnClickedConnectButton()
     CString port;
     GetDlgItemText(IDC_EDIT, port);
 
-
     if (connectSocket.Connect(ipAddr, _ttoi(port)) == FALSE)
     {
         MessageBox(_T("서버 연결 실패"), _T("실패"), 0);
     }
     else
     {
-        Data connectData;
-        connectData.protocol = kConnect;
-        char buffer[sizeof(connectData)];
-        connectData.Serialize(connectData, buffer);
-        connectSocket.Send(buffer, sizeof(buffer), 0);
-
+        Data sendData;
+        sendData.protocol = kConnect;
+        char sendBuffer[sizeof(sendData)];
+        sendData.Serialize(sendData, sendBuffer);
+        connectSocket.Send(sendBuffer, sizeof(sendBuffer), 0);
         MessageBox(_T("서버 연결 성공"), _T("성공"), 0);
     }
 }
+
 void CRemoteExplorerClientDlg::InitComboBox()
 {
+    //LV_VIEW_ICON            0x0000
+    //LV_VIEW_DETAILS         0x0001
+    //LV_VIEW_SMALLICON       0x0002
+    //LV_VIEW_LIST            0x0003
     comboBox.AddString(_T("큰 아이콘"));
+    comboBox.AddString(_T("자세히"));
     comboBox.AddString(_T("작은 아이콘"));
     comboBox.AddString(_T("간단히"));
-    comboBox.AddString(_T("자세히"));
+    comboBox.SetCurSel(1); // 초기상태는 '자세히'
 }
+
 void CRemoteExplorerClientDlg::OnTvnSelchangedTree(NMHDR *pNMHDR, LRESULT *pResult)
 {
     LPNMTREEVIEW pNMTreeView = reinterpret_cast<LPNMTREEVIEW>(pNMHDR);
@@ -110,13 +114,13 @@ void CRemoteExplorerClientDlg::OnTvnSelchangedTree(NMHDR *pNMHDR, LRESULT *pResu
     strcpy_s(selectedData.fileName, static_cast<CStringA>(fileName));
     strcpy_s(selectedData.filePath, static_cast<CStringA>(filePath));
 
-    if (cache.find(filePath) == cache.end())
+    if (clientCache.find(filePath) == clientCache.end())
     {
-        selectedData.protocol = kRefreshTreeCtrl; // 트리뷰에 그려져있지 않다면 트리뷰 갱신
+        selectedData.protocol = kUpdateTreeCtrl; // 트리뷰에 그려져있지 않다면 트리뷰 갱신
     }
     else
     {
-        selectedData.protocol = kRefreshListCtrl; // 트리뷰에 이미 그려져있을땐 리스트뷰만 갱신
+        selectedData.protocol = kUpdateListCtrl; // 트리뷰에 이미 그려져있을땐 리스트뷰만 갱신
     }
 
     char buffer[sizeof(selectedData)];
@@ -124,58 +128,59 @@ void CRemoteExplorerClientDlg::OnTvnSelchangedTree(NMHDR *pNMHDR, LRESULT *pResu
     connectSocket.Send(buffer, sizeof(buffer));
     *pResult = 0;
 }
-void CRemoteExplorerClientDlg::RefreshTreeCtrl(const Data& data)
+
+// treeCtrl을 그려주는 함수
+void CRemoteExplorerClientDlg::UpdateTreeCtrl(const Data& receiveData)
 {
     HTREEITEM hItem;
     hItem = treeCtrl.GetNextItem(NULL, TVGN_CARET);
     CString filePath;
-    filePath = data.filePath;
-
-    CString key;
-    key = filePath;
-    if (cache.find(key) == cache.end())
+    filePath = static_cast<CString>(receiveData.filePath);
+    if (clientCache.find(filePath) == clientCache.end())
     {
-        cache[key] = data;
-        for (int i = 0; i < data.childLength; i++)
+        clientCache[filePath] = receiveData;
+        for (int i = 0; i < receiveData.childLength; i++)
         {
             CString childName;
-            childName = data.child[i];
-            SHFILEINFO sfi;
-            SHGetFileInfo(childName, 0, &sfi, sizeof(SHFILEINFO), SHGFI_USEFILEATTRIBUTES
-                | SHGFI_ICON);
-            if (data.childType[i] == kDirectory)
+            childName = receiveData.child[i];
+            SHFILEINFO shFileInfo;
+            SHGetFileInfo(childName, 0, &shFileInfo, sizeof(SHFILEINFO),
+                SHGFI_USEFILEATTRIBUTES | SHGFI_ICON);
+            if (receiveData.childType[i] == kDirectory)
             {
                 treeCtrl.InsertItem(childName, kDirectoryIcon, kDirectoryIcon, hItem);
             }
             else
             {
-                treeCtrl.InsertItem(childName, sfi.iIcon, sfi.iIcon, hItem);
+                treeCtrl.InsertItem(childName, shFileInfo.iIcon, shFileInfo.iIcon, hItem);
             }
         }
-        GetChildListCtrl(data);
+        DrawListCtrl(receiveData);
     }
 }
+
 // 상위 폴더로 이동하는 가상폴더를 추가하는 함수
 void CRemoteExplorerClientDlg::AddVirtualFolder(const CString filePath)
 {
-    listCtrl.InsertItem(0, _T(".."));
-    int idx = -1;
+    listCtrl.InsertItem(0, _T(".."), kDirectoryIcon);
+    int index = -1;
     // 한칸 올라간 filePath를 추가해준다.
-    for (int i = filePath.GetLength() - 1; i >= 0; i--)
+    for (int filePathIndex = filePath.GetLength() - 1; filePathIndex >= 0; filePathIndex--)
     {
-        if (filePath.GetAt(i) == '\\')
+        if (filePath.GetAt(filePathIndex) == '\\')
         {
-            idx = i;
+            index = filePathIndex;
             break;
         }
     }
-    listCtrl.SetItemText(0, 1, filePath.Left(idx));
-
+    listCtrl.SetItemText(0, 1, filePath.Left(index));
 }
-void CRemoteExplorerClientDlg::GetChildListCtrl(const Data& data)
+
+// listCtrl을 그려주는 함수
+void CRemoteExplorerClientDlg::DrawListCtrl(const Data& data)
 {
     CString filePath;
-    filePath = data.filePath;
+    filePath = static_cast<CString>(data.filePath);
     filePath = filePath.Left(filePath.GetLength() - 4);
 
     if (listCtrl.GetItemCount() == 0 && data.fileType == kDirectory)
@@ -183,15 +188,15 @@ void CRemoteExplorerClientDlg::GetChildListCtrl(const Data& data)
         AddVirtualFolder(filePath);
     }
 
-    for (int i = 0; i < data.childLength; i++)
+    CString childPath;
+    CString childName;
+    CString childSize;
+    CString childType;
+    CString childAccessTime;
+    for (int childIndex = 0; childIndex < data.childLength; childIndex++)
     {
-        CString childName;
-        CString childPath;
-        CString childSize;
-        CString childType;
-        CString childAccessTime;
-        childName = data.child[i];
-        childPath = data.filePath;
+        childPath = static_cast<CString>(data.filePath);
+        childName = static_cast<CString>(data.child[childIndex]);
         if (childPath.GetAt(childPath.GetLength() - 1) == '*')
         {
             childPath = childPath.Left(childPath.GetLength() - 3) + childName;
@@ -202,7 +207,11 @@ void CRemoteExplorerClientDlg::GetChildListCtrl(const Data& data)
             childPath += childName;
         }
 
-        switch (data.childType[i])
+        SHFILEINFO shFileInfo;
+        SHGetFileInfo(childName, 0, &shFileInfo, sizeof(SHFILEINFO),
+            SHGFI_USEFILEATTRIBUTES | SHGFI_ICON);
+
+        switch (data.childType[childIndex])
         {
         case kDirectory:
             childType = _T("Directory");
@@ -210,121 +219,110 @@ void CRemoteExplorerClientDlg::GetChildListCtrl(const Data& data)
             break;
         case kFile:
             childType = _T("File");
-            if (data.childSize[i] > 1024)
+            if (data.childSize[childIndex] > 1024)
             {
-                childSize.Format(_T("%d KB"), data.childSize[i] / 1024);
+                childSize.Format(_T("%d KB"), data.childSize[childIndex] / 1024);
             }
             else
             {
-                childSize.Format(_T("%d B"), data.childSize[i]);
+                childSize.Format(_T("%d B"), data.childSize[childIndex]);
             }
             break;
         case kDisk:
             childType = _T("Disk");
             break;
         }
+        childAccessTime = static_cast<CString>(data.childAccessTime[childIndex]);
 
-        childAccessTime = data.childAccessTime[i];
-        listCtrl.InsertItem(0, childName);
+        if (data.childType[childIndex] == kDirectory)
+        {
+            listCtrl.InsertItem(0, childName, kDirectoryIcon);
+        }
+        else
+        {
+            listCtrl.InsertItem(0, childName, shFileInfo.iIcon);
+        }
         listCtrl.SetItemText(0, 1, childPath);
         listCtrl.SetItemText(0, 2, childType);
         listCtrl.SetItemText(0, 3, childSize);
         listCtrl.SetItemText(0, 4, childAccessTime);
     }
 }
-// 처음 연결했을때 받아온 데이터를 treeCtrl에 뿌려주는 함수
-void CRemoteExplorerClientDlg::InitTreeCtrl(const Data& data)
+
+// 처음 연결했을때 받아온 데이터를 CtreeCtrl에 뿌려주는 함수
+void CRemoteExplorerClientDlg::InitTreeCtrl(const Data& receiveData)
 {
-    HTREEITEM hItem;
-    SHFILEINFO sfi;
-    SHGetFileInfo(static_cast<CString>(data.filePath), 0, &sfi, sizeof(SHFILEINFO), SHGFI_USEFILEATTRIBUTES
-        | SHGFI_ICON);
-    //treeCtrl.InsertItem(static_cast<CString>(data.fileName), sfi.iIcon, sfi.iIcon);
-    treeCtrl.InsertItem(static_cast<CString>(data.fileName), sfi.iIcon, sfi.iIcon);
+    SHFILEINFO shFileInfo;
+    SHGetFileInfo(static_cast<CString>(receiveData.filePath), 0, &shFileInfo, sizeof(SHFILEINFO)
+        , SHGFI_USEFILEATTRIBUTES | SHGFI_ICON);
+    treeCtrl.InsertItem(static_cast<CString>(receiveData.fileName), shFileInfo.iIcon, shFileInfo.iIcon);
 }
-// treeCtrl을 확장 시켜주는 함수
-void CRemoteExplorerClientDlg::ExpandTreeCtrl(HTREEITEM hItem, UINT nCode)
-{
-    while (hItem != NULL)
-    {
-        treeCtrl.Expand(hItem, nCode);
-        hItem = treeCtrl.GetNextItem(hItem, TVGN_NEXTVISIBLE);
-    }
-}
+
+// 시스템 이미지 초기화하는 함수
 void CRemoteExplorerClientDlg::GetSystemImage()
 {
-    //// 운영체제가 관리하는 작은 아이콘 이미지 리스트와 연결
-    systemImageList = (HIMAGELIST)SHGetFileInfo((LPCTSTR)_T("C:\\"),
+    systemImageList = (HIMAGELIST)SHGetFileInfo(static_cast<LPCTSTR>(_T("C:\\")),
         0, &info, sizeof(SHFILEINFO), SHGFI_SYSICONINDEX | SHGFI_SMALLICON);
-
     imgSmallList.Attach(systemImageList);
     imgSmallList.Add(AfxGetApp()->LoadIcon(IDR_MAINFRAME));
-
     treeCtrl.SetImageList(&imgSmallList, LVSIL_NORMAL);
+    listCtrl.SetImageList(&imgSmallList, LVSIL_SMALL);
     imgSmallList.Detach();
-
 }
+
 // listCtrl 더블클릭시 실행하는 함수
 void CRemoteExplorerClientDlg::OnNMDblclkList(NMHDR *pNMHDR, LRESULT *pResult)
 {
     LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
-    // 필드 선택
     if (pNMItemActivate->iItem != -1)
     {
         Data sendData;
         CString fileName = listCtrl.GetItemText(pNMItemActivate->iItem, 0);
         CString filePath = listCtrl.GetItemText(pNMItemActivate->iItem, 1);
-        CString fileType = listCtrl.GetItemText(pNMItemActivate->iItem, 2);
-        CString fileSize = listCtrl.GetItemText(pNMItemActivate->iItem, 3);
-        CString key;
-        key = filePath + _T("\\*.*");
+        CString clientCacheKey;
+        clientCacheKey = filePath + _T("\\*.*");
         // 캐시에 없을 경우 데이터 요청
-        if (cache.find(key) == cache.end())
+        if (clientCache.find(clientCacheKey) == clientCache.end())
         {
             sendData.protocol = kRequestData;
             strcpy_s(sendData.filePath, static_cast<CStringA>(filePath));
             strcpy_s(sendData.fileName, static_cast<CStringA>(fileName));
-
-            char buffer[sizeof(Data)];
-            sendData.Serialize(sendData, buffer);
-            connectSocket.Send(buffer, sizeof(buffer));
         }
-        // 캐시에 있다면 있는거로 화면 요청
+        // 캐시에 있다면 화면 요청
         else
         {
             filePath += _T("\\*.*");
             strcpy_s(sendData.filePath, static_cast<CStringA>(filePath));
-            sendData.protocol = kRefreshListCtrl;
+            sendData.protocol = kUpdateListCtrl;
             listCtrl.DeleteAllItems();
-
-            char buffer[sizeof(Data)];
-            sendData.Serialize(sendData, buffer);
-            connectSocket.Send(buffer, sizeof(buffer));
         }
-
+        char sendBuffer[sizeof(Data)];
+        sendData.Serialize(sendData, sendBuffer);
+        connectSocket.Send(sendBuffer, sizeof(sendBuffer));
     }
     *pResult = 0;
 }
-void CRemoteExplorerClientDlg::RefreshListCtrl(const Data& receiveData)
-{
 
+// listCtrl을 업데이트 하는 함수
+void CRemoteExplorerClientDlg::UpdateListCtrl(const Data& receiveData)
+{
     Data sendData;
     CString filePath;
-    filePath = receiveData.filePath;
-    if (cache.find(filePath) == cache.end())
+    filePath = static_cast<CString>(receiveData.filePath);
+    // 캐시에 없다면 데이터를 요청함
+    if (clientCache.find(filePath) == clientCache.end())
     {
         sendData.protocol = kRequestData;
-        char buffer[sizeof(Data)];
-        sendData.Serialize(sendData, buffer);
-        connectSocket.Send(buffer, sizeof(buffer));
+        char sendBuffer[sizeof(Data)];
+        sendData.Serialize(sendData, sendBuffer);
+        connectSocket.Send(sendBuffer, sizeof(sendBuffer));
     }
     else
     {
-        sendData = cache[filePath];
-        GetChildListCtrl(sendData);
+        sendData = clientCache[filePath];
+        DrawListCtrl(sendData);
         CString fileName;
-        fileName = sendData.fileName;
-
+        fileName = static_cast<CString>(sendData.fileName);
         if (listCtrl.GetItemCount() == 0 && sendData.fileType == kDirectory)
         {
             AddVirtualFolder(filePath);
@@ -339,153 +337,132 @@ void CRemoteExplorerClientDlg::RefreshListCtrl(const Data& receiveData)
         //}
     }
 }
-int CRemoteExplorerClientDlg::CheckFilePath(const CString filePath)
-{
-    int idx = -1;
-    bool flag = true;
-    for (int i = filePath.GetLength() - 1; i >= 0; i--)
-    {
-        if (filePath.GetAt(i) == '\\')
-        {
-            if (flag)
-            {
-                flag = false;
-            }
-            else
-            {
-                idx = i;
-                break;
-            }
-        }
-    }
-    return idx;
-}
-void CRemoteExplorerClientDlg::MakeData(const Data& data)
+
+void CRemoteExplorerClientDlg::ShowData(const Data& receiveData)
 {
     CString filePath;
-    filePath = data.filePath;
+    filePath = static_cast<CString>(receiveData.filePath);
     filePath += _T("\\*.*");
-    cache[filePath] = data;
-    listCtrl.DeleteAllItems();
-    UpdateTreeCtrl(data);
-    UpdateListCtrl(data);
-}
-// 받아온 데이터로 ListCtrl을 다시 그려주는 함수
-void CRemoteExplorerClientDlg::UpdateListCtrl(const Data& data)
-{
-    GetChildListCtrl(data);
-    CString filePath;
-    filePath = data.filePath;
-    if (listCtrl.GetItemCount() == 0 && data.fileType == kDirectory)
-    {
-        AddVirtualFolder(filePath);
-    }
-}
-void CRemoteExplorerClientDlg::UpdateTreeCtrl(const Data& data)
-{
+    clientCache[filePath] = receiveData;
+
     CString fileName;
-    fileName = data.fileName;
+    fileName = static_cast<CString>(receiveData.fileName);
+
     // 트리뷰에서 현재 파일의 경로를 찾는다.
     HTREEITEM current = FindItem(fileName, treeCtrl.GetRootItem());
 
     // 부모에 자식으로 가져온 데이터들을 추가해준다.
-    for (int i = 0; i < data.childLength; i++)
+    for (int i = 0; i < receiveData.childLength; i++)
     {
         CString childName;
-        childName = data.child[i];
+        childName = static_cast<CString>(receiveData.child[i]);
+        SHFILEINFO shFileInfo;
 
-        SHFILEINFO sfi;
         CString childPath;
-        childPath = data.filePath;
+        childPath = static_cast<CString>(receiveData.filePath);
         childPath += "\\";
         childPath = childName;
-        SHGetFileInfo(childPath, 0, &sfi, sizeof(SHFILEINFO), SHGFI_USEFILEATTRIBUTES
-            | SHGFI_ICON);
-        treeCtrl.InsertItem(childName, sfi.iIcon, sfi.iIcon, current);
+        SHGetFileInfo(childPath, 0, &shFileInfo, sizeof(SHFILEINFO),
+            SHGFI_USEFILEATTRIBUTES | SHGFI_ICON);
+        treeCtrl.InsertItem(childName, shFileInfo.iIcon, shFileInfo.iIcon, current);
+    }
+
+    // 받아온 데이터로 ListCtrl을 그려준다.
+    listCtrl.DeleteAllItems();
+    DrawListCtrl(receiveData);
+    if (listCtrl.GetItemCount() == 0 && receiveData.fileType == kDirectory)
+    {
+        AddVirtualFolder(filePath);
     }
 }
+
+// '자세히' 모드에서 Header 클릭시 정렬해주는 함수
 void CRemoteExplorerClientDlg::OnHdnItemClickList(NMHDR * pNMHDR, LRESULT * pResult)
 {
     LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
     int column = pNMLV->iItem;
-    for (int i = 0; i < (listCtrl.GetItemCount()); i++)
+    for (int listCtrlItem = 0; listCtrlItem < listCtrl.GetItemCount(); listCtrlItem++)
     {
-        listCtrl.SetItemData(i, i);
+        listCtrl.SetItemData(listCtrlItem, listCtrlItem);
     }
-    ascending = !ascending;
+    sorting = !sorting;
     SORTPARAM sortParams;
     sortParams.list = &listCtrl;
     sortParams.sortColumn = column;
-    sortParams.sortDirect = ascending;
+    sortParams.sortDirect = sorting;
     listCtrl.SortItems(&CompareItem, (LPARAM)&sortParams);
     *pResult = 0;
 }
-int CRemoteExplorerClientDlg::CompareItem(const LPARAM param1, const LPARAM param2, const LPARAM paramSort)
+
+// 정렬시 사용할 인자
+int CRemoteExplorerClientDlg::CompareItem(const LPARAM itemOne, const LPARAM itemTwo, const LPARAM paramSort)
 {
     CListCtrl *list = ((SORTPARAM*)paramSort)->list;
     int sortColumn = ((SORTPARAM*)paramSort)->sortColumn;
     BOOL sortDirect = ((SORTPARAM*)paramSort)->sortDirect;
 
-    LVFINDINFO info1, info2;
-    info1.flags = LVFI_PARAM;
-    info1.lParam = param1;
-    info2.flags = LVFI_PARAM;
-    info2.lParam = param2;
-    int row1 = list->FindItem(&info1, -1);
-    int row2 = list->FindItem(&info2, -1);
+    LVFINDINFO infoOne, infoTwo;
+    infoOne.flags = LVFI_PARAM;
+    infoOne.lParam = itemOne;
+    infoTwo.flags = LVFI_PARAM;
+    infoTwo.lParam = itemTwo;
+    int rowOne = list->FindItem(&infoOne, -1);
+    int rowTwo = list->FindItem(&infoTwo, -1);
 
-    CString strItem1 = list->GetItemText(row1, sortColumn);
-    CString strItem2 = list->GetItemText(row2, sortColumn);
+    CString itemStringOne = list->GetItemText(rowOne, sortColumn);
+    CString itemStringTwo = list->GetItemText(rowTwo, sortColumn);
 
 
     if (sortDirect)
     {
         if (sortColumn == 3)
         {
-            int size1 = FileSizeConvertToInt(strItem1);
-            int size2 = FileSizeConvertToInt(strItem2);
-            return size1 < size2;
+            int paramOneSize = FileSizeConvertToInt(itemStringOne);
+            int paramTwoSize = FileSizeConvertToInt(itemStringTwo);
+            return paramOneSize < paramTwoSize;
         }
         else
         {
-            return strcmp(static_cast<CStringA>(strItem1), static_cast<CStringA>(strItem2));
+            return strcmp(static_cast<CStringA>(itemStringOne), static_cast<CStringA>(itemStringTwo));
         }
     }
     else
     {
         if (sortColumn == 3)
         {
-            int size1 = FileSizeConvertToInt(strItem1);
-            int size2 = FileSizeConvertToInt(strItem2);
+            int size1 = FileSizeConvertToInt(itemStringOne);
+            int size2 = FileSizeConvertToInt(itemStringTwo);
             return size1 > size2;
         }
         else
         {
-            return -strcmp(static_cast<CStringA>(strItem1), static_cast<CStringA>(strItem2));
+            return -strcmp(static_cast<CStringA>(itemStringOne), static_cast<CStringA>(itemStringTwo));
         }
     }
 }
-int CRemoteExplorerClientDlg::FileSizeConvertToInt(CString& strItem)
+
+// 파일 크기를 int형으로 바꿔주는 함수
+int CRemoteExplorerClientDlg::FileSizeConvertToInt(CString& itemString)
 {
     int size = 0;
     BOOL isKB = false;
     int idx = -1;
-    if (strItem.GetLength() > 1)
+    if (itemString.GetLength() > 1)
     {
-        for (int i = 0; i < strItem.GetLength(); i++)
+        for (int i = 0; i < itemString.GetLength(); i++)
         {
-            if (strItem.GetAt(i) == ' ')
+            if (itemString.GetAt(i) == ' ')
             {
                 idx = i;
-                if (strItem.GetAt(i + 1) == 'K')
+                if (itemString.GetAt(i + 1) == 'K')
                 {
                     isKB = true;
                 }
                 break;
             }
         }
-        strItem = strItem.Left(idx);
-        size = _ttoi(strItem);
+        itemString = itemString.Left(idx);
+        size = _ttoi(itemString);
         if (isKB == true)
         {
             size *= 1024;
@@ -508,6 +485,7 @@ void CRemoteExplorerClientDlg::DoDataExchange(CDataExchange* pDX)
     DDX_Control(pDX, IDC_LIST, listCtrl);
     DDX_Control(pDX, IDC_COMBO1, comboBox);
 }
+
 BEGIN_MESSAGE_MAP(CRemoteExplorerClientDlg, CDialogEx)
     ON_WM_SYSCOMMAND()
     ON_WM_PAINT()
@@ -516,13 +494,12 @@ BEGIN_MESSAGE_MAP(CRemoteExplorerClientDlg, CDialogEx)
     ON_NOTIFY(TVN_SELCHANGED, IDC_TREE, &CRemoteExplorerClientDlg::OnTvnSelchangedTree)
     ON_NOTIFY(NM_DBLCLK, IDC_LIST, &CRemoteExplorerClientDlg::OnNMDblclkList)
     ON_NOTIFY(HDN_ITEMCLICK, 0, &CRemoteExplorerClientDlg::OnHdnItemClickList)
+    ON_CBN_SELCHANGE(IDC_COMBO1, &CRemoteExplorerClientDlg::OnComboBoxChanged)
 END_MESSAGE_MAP()
+
 BOOL CRemoteExplorerClientDlg::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
-
-    // 시스템 메뉴에 "정보..." 메뉴 항목을 추가합니다.
-
     // IDM_ABOUTBOX는 시스템 명령 범위에 있어야 합니다.
     ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
     ASSERT(IDM_ABOUTBOX < 0xF000);
@@ -546,29 +523,31 @@ BOOL CRemoteExplorerClientDlg::OnInitDialog()
     SetIcon(m_hIcon, TRUE);			// 큰 아이콘을 설정합니다.
     SetIcon(m_hIcon, FALSE);		// 작은 아이콘을 설정합니다.
 
-                                    // TODO: 여기에 추가 초기화 작업을 추가합니다.
     connectSocket.Create();
+
     ipAddress.SetWindowText(_T("127.0.0.1"));
     portNum.SetWindowText(_T("21000"));
 
     InitComboBox();
     InitListCtrl();
-
     GetSystemImage();
 
     return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
+
+// listCtrl을 초기화하는 함수. 초기 상태는 '자세히' 모드
 void CRemoteExplorerClientDlg::InitListCtrl()
 {
     CRect rect;
     listCtrl.GetWindowRect(&rect);
     listCtrl.SetExtendedStyle(LVS_EX_GRIDLINES | LVS_EX_FULLROWSELECT);
-    listCtrl.InsertColumn(0, _T("이름"), LVCFMT_LEFT, (int)(rect.Width()*0.25));
+    listCtrl.InsertColumn(0, _T("이름"), LVCFMT_LEFT, (int)(rect.Width()*0.35));
     listCtrl.InsertColumn(1, _T("파일경로"), LVCFMT_LEFT, 0); // 파일경로는 숨김
     listCtrl.InsertColumn(2, _T("유형"), LVCFMT_LEFT, (int)(rect.Width()*0.15));
-    listCtrl.InsertColumn(3, _T("크기"), LVCFMT_LEFT, (int)(rect.Width()*0.25));
+    listCtrl.InsertColumn(3, _T("크기"), LVCFMT_LEFT, (int)(rect.Width()*0.15));
     listCtrl.InsertColumn(4, _T("수정한 날짜"), LVCFMT_LEFT, (int)(rect.Width()*0.35));
 }
+
 void CRemoteExplorerClientDlg::OnSysCommand(UINT nID, LPARAM lParam)
 {
     if ((nID & 0xFFF0) == IDM_ABOUTBOX)
@@ -581,23 +560,19 @@ void CRemoteExplorerClientDlg::OnSysCommand(UINT nID, LPARAM lParam)
         CDialogEx::OnSysCommand(nID, lParam);
     }
 }
+
 void CRemoteExplorerClientDlg::OnPaint()
 {
     if (IsIconic())
     {
-        CPaintDC dc(this); // 그리기를 위한 디바이스 컨텍스트입니다.
-
+        CPaintDC dc(this);
         SendMessage(WM_ICONERASEBKGND, reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
-
-        // 클라이언트 사각형에서 아이콘을 가운데에 맞춥니다.
         int cxIcon = GetSystemMetrics(SM_CXICON);
         int cyIcon = GetSystemMetrics(SM_CYICON);
         CRect rect;
         GetClientRect(&rect);
         int x = (rect.Width() - cxIcon + 1) / 2;
         int y = (rect.Height() - cyIcon + 1) / 2;
-
-        // 아이콘을 그립니다.
         dc.DrawIcon(x, y, m_hIcon);
     }
     else
@@ -605,34 +580,10 @@ void CRemoteExplorerClientDlg::OnPaint()
         CDialogEx::OnPaint();
     }
 }
+
 HCURSOR CRemoteExplorerClientDlg::OnQueryDragIcon()
 {
     return static_cast<HCURSOR>(m_hIcon);
-}
-
-// treeCtrl에서 string에 해당하는 파일을 찾으며 펼쳐주는 함수
-HTREEITEM CRemoteExplorerClientDlg::ExpandItem(const CString& fileName, HTREEITEM rootItem)
-{
-    CString text = treeCtrl.GetItemText(rootItem);
-    if (text.Compare(fileName) == 0)
-    {
-        return rootItem;
-    }
-
-    HTREEITEM child = treeCtrl.GetChildItem(rootItem);
-    while (child)
-    {
-        HTREEITEM hFound = ExpandItem(fileName, child);
-        if (hFound)
-        {
-            treeCtrl.Expand(hFound, TVE_EXPAND);
-            return hFound;
-        }
-
-        child = treeCtrl.GetNextSiblingItem(child);
-    }
-
-    return NULL;
 }
 
 // treeCtrl에서 string에 해당하는 파일을 찾는 함수
@@ -643,18 +594,44 @@ HTREEITEM CRemoteExplorerClientDlg::FindItem(const CString& fileName, HTREEITEM 
     {
         return rootItem;
     }
-
     HTREEITEM sibling = treeCtrl.GetChildItem(rootItem);
     while (sibling)
     {
-        HTREEITEM hFound = FindItem(fileName, sibling);
-        if (hFound)
+        HTREEITEM found = FindItem(fileName, sibling);
+        if (found)
         {
-            return hFound;
+            return found;
         }
-
         sibling = treeCtrl.GetNextSiblingItem(sibling);
     }
-
     return NULL;
+}
+
+// 콤보박스에 있는 모드를 다른것을 선택하면 호출되는 함수
+void CRemoteExplorerClientDlg::OnComboBoxChanged()
+{
+    //LV_VIEW_ICON            0x0000
+    //LV_VIEW_DETAILS         0x0001
+    //LV_VIEW_SMALLICON       0x0002
+    //LV_VIEW_LIST            0x0003
+    switch (comboBox.GetCurSel())
+    {
+    case LV_VIEW_ICON:
+        systemImageList = (HIMAGELIST)SHGetFileInfo((LPCTSTR)_T("C:\\"),
+            0, &info, sizeof(SHFILEINFO), SHGFI_SYSICONINDEX | SHGFI_LARGEICON);
+        imgSmallList.Attach(systemImageList);
+        listCtrl.SetImageList(&imgSmallList, LVSIL_NORMAL);
+        break;
+    case LV_VIEW_DETAILS:
+    case LV_VIEW_SMALLICON:
+    case LV_VIEW_LIST:
+    default:
+        systemImageList = (HIMAGELIST)SHGetFileInfo((LPCTSTR)_T("C:\\"),
+            0, &info, sizeof(SHFILEINFO), SHGFI_SYSICONINDEX | SHGFI_SMALLICON);
+        imgSmallList.Attach(systemImageList);
+        listCtrl.SetImageList(&imgSmallList, LVSIL_SMALL);
+        break;
+    }
+    imgSmallList.Detach();
+    listCtrl.SetView(comboBox.GetCurSel());
 }
