@@ -1,13 +1,9 @@
-﻿// RemoteExplorerServerDlg.h : 헤더 파일
-//
-
-#pragma once
+﻿#pragma once
 #include "afxwin.h"
 #include "ListenSocket.h"
 //#include "Data.h"
 #include "../Data/Data.h"
 
-// CRemoteExplorerServerDlg 대화 상자
 class CRemoteExplorerServerDlg : public CDialogEx
 {
 public:

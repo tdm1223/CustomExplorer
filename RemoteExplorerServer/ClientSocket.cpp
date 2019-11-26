@@ -4,8 +4,6 @@
 #include "ListenSocket.h"
 #include "RemoteExplorerServerDlg.h"
 
-// CClientSocket
-
 CClientSocket::CClientSocket()
 {
     listenSocket = NULL;
@@ -15,11 +13,9 @@ CClientSocket::~CClientSocket()
 {
 }
 
-// CClientSocket 멤버 함수
 void CClientSocket::OnClose(int nErrorCode)
 {
     CSocket::OnClose(nErrorCode);
-
     CListenSocket* cListenSocket = static_cast<CListenSocket*>(listenSocket);
     cListenSocket->CloseClientSocket(this);
 }
@@ -29,43 +25,39 @@ void CClientSocket::OnReceive(int nErrorCode)
     CString listBoxString = _T("");
     CString ipAddress = _T("");
     UINT portNumber = 0;
-    char buffer[sizeof(Data)];
-    ::ZeroMemory(buffer, sizeof(buffer));
+    char receiveBuffer[sizeof(Data)];
+    ::ZeroMemory(receiveBuffer, sizeof(receiveBuffer));
 
     GetPeerName(ipAddress, portNumber);
-    if (Receive(buffer, sizeof(buffer)) > 0)
+    if (Receive(receiveBuffer, sizeof(receiveBuffer)) > 0)
     {
         CRemoteExplorerServerDlg* serverDialog = static_cast<CRemoteExplorerServerDlg*>(AfxGetMainWnd());
         CListenSocket* serverSocket = static_cast<CListenSocket*>(listenSocket);
-
-        Data data;
-        data.DeSerialize(data, buffer);
+        Data receiveData;
+        receiveData.DeSerialize(receiveData, receiveBuffer);
         CString filePath;
+        filePath = static_cast<CString>(receiveData.filePath);
         CString port;
         port.Format(_T("%d"), portNumber);
-        switch (data.protocol)
+        switch (receiveData.protocol)
         {
         case kConnect:
             serverDialog->list.AddString(ipAddress + _T("::") + port + (" CONNECT"));
-            serverSocket->InitData(this, data);
+            serverSocket->InitData(this, receiveData);
             break;
-        case kRefreshTreeCtrl:
-            filePath = data.filePath;
+        case kUpdateTreeCtrl:
             serverDialog->list.AddString(ipAddress + _T("::") + port + _T(" CLICK TREE ") + filePath);
-            serverSocket->RefreshTreeCtrl(this, data);
+            serverSocket->UpdateTreeCtrl(this, receiveData);
             break;
-        case kRefreshListCtrl:
-            filePath = data.filePath;
+        case kUpdateListCtrl:
             serverDialog->list.AddString(ipAddress + _T("::") + port + _T(" DOUBLE CLICK LISTCTRL ") + filePath);
-            serverSocket->RefreshListCtrl(this, data);
+            serverSocket->UpdateListCtrl(this, receiveData);
             break;
         case kRequestData:
-            filePath = data.filePath;
             serverDialog->list.AddString(ipAddress + _T("::") + port + _T(" MAKE DATA ") + filePath + _T("\\*.*"));
-            serverSocket->ResponseData(this, data);
+            serverSocket->ResponseData(this, receiveData);
             break;
         }
-
     }
     CSocket::OnReceive(nErrorCode);
 }

@@ -117,12 +117,12 @@ BOOL CRemoteExplorerServerDlg::OnInitDialog()
     {
         if (!listenSocket.Listen())
         {
-            MessageBox(_T("LISTEN 실패"), _T("실패"), 0);
+            AfxMessageBox(_T("LISTEN 실패"));
         }
     }
     else
     {
-        MessageBox(_T("서버 소켓 생성에 실패하였습니다."), _T("알림"), 0);
+        AfxMessageBox(_T("서버 소켓 생성 실패"));
     }
 
     return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
