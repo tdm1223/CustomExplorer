@@ -33,6 +33,6 @@ public:
     int childLength;
     char child[500][MAX_PATH];
     char childAccessTime[500][100];
-    int childSize[500];
+    ULONGLONG childSize[500];
 };
 

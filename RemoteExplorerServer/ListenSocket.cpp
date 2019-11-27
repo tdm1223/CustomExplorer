@@ -1,7 +1,10 @@
-﻿#include "stdafx.h"
+﻿// ListenSocket.cpp : 구현 파일입니다.
+#include "stdafx.h"
 #include "RemoteExplorerServer.h"
 #include "ListenSocket.h"
 #include "ClientSocket.h"
+
+// CListenSocket
 
 CListenSocket::CListenSocket()
 {
@@ -60,17 +63,37 @@ void CListenSocket::InitData(CSocket* clientSocket, Data& receiveData)
     }
 }
 
+// 올바른 드라이브인지 체크하는 함수
+bool CListenSocket::CheckDrive(CString& currentDriveName)
+{
+    ULARGE_INTEGER avail, free, total;
+    avail.QuadPart = 0L;
+    free.QuadPart = 0L;
+    total.QuadPart = 0L;
+    GetDiskFreeSpaceEx(currentDriveName, &avail, &total, &free);
+    if (total.QuadPart == 0 && avail.QuadPart == 0 && free.QuadPart == 0)
+    {
+        return false;
+    }
+    else
+    {
+        return true;
+    }
+}
+
 // 클라이언트에서 트리뷰를 클릭했을때 데이터를 만들어서 다시 전달해주는 함수
 void CListenSocket::UpdateTreeCtrl(CSocket* clientSocket, const Data& receiveData)
 {
-    CString filePath(receiveData.filePath);
+    CString filePath;
+    filePath = static_cast<CString>(receiveData.filePath);
     MakeAndResponseData(clientSocket, receiveData, kUpdateTreeCtrl, filePath);
 }
 
 // 만들어진 데이터를 응답하는 함수
 void CListenSocket::ResponseData(CSocket* clientSocket, const Data& receiveData)
 {
-    CString filePath(receiveData.filePath);
+    CString filePath;
+    filePath = static_cast<CString>(receiveData.filePath);
     filePath += _T("\\*.*");
     MakeAndResponseData(clientSocket, receiveData, kRequestData, filePath);
 }
@@ -95,6 +118,7 @@ void CListenSocket::MakeAndResponseData(CSocket* clientSocket, const Data& recei
     Data sendData;
     sendData.protocol = protocol;
     CFileFind finder;
+
     BOOL fileIterator = finder.FindFile(filePath);
     int count = 0;
     while (fileIterator)
@@ -104,16 +128,16 @@ void CListenSocket::MakeAndResponseData(CSocket* clientSocket, const Data& recei
         {
             continue;
         }
-
-        if (finder.IsDirectory())
+        else if (finder.IsDirectory())
         {
             sendData.childType[count] = kDirectory;
             sendData.childSize[count] = 0;
         }
-        else
+        else if (finder.IsArchived())
         {
             sendData.childType[count] = kFile;
-            sendData.childSize[count] = finder.GetLength();
+            ULONGLONG fileSize = finder.GetLength();
+            sendData.childSize[count] = fileSize;
         }
         CTime cTime;
         finder.GetLastAccessTime(cTime);
@@ -121,7 +145,8 @@ void CListenSocket::MakeAndResponseData(CSocket* clientSocket, const Data& recei
         strcpy_s(sendData.childAccessTime[count], static_cast<CStringA>(timeConvertToString));
 
         CString fileName = finder.GetFileName();
-        strcpy_s(sendData.child[count++], static_cast<CStringA>(fileName));
+        strcpy_s(sendData.child[count], static_cast<CStringA>(fileName));
+        count++;
     }
 
     sendData.childLength = count;
@@ -147,3 +172,4 @@ void CListenSocket::MakeAndResponseData(CSocket* clientSocket, const Data& recei
     sendData.Serialize(sendData, sendBuffer);
     client->Send(sendBuffer, sizeof(sendBuffer), 0);
 }
+

@@ -72,7 +72,7 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 void CRemoteExplorerServerDlg::DoDataExchange(CDataExchange* pDX)
 {
     CDialogEx::DoDataExchange(pDX);
-    DDX_Control(pDX, IDC_LIST, list);
+    DDX_Control(pDX, IDC_LIST1, listCtrl);
 }
 
 BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
@@ -125,6 +125,7 @@ BOOL CRemoteExplorerServerDlg::OnInitDialog()
         AfxMessageBox(_T("서버 소켓 생성 실패"));
     }
 
+    InitListCtrl();
     return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
 
@@ -169,4 +170,17 @@ void CRemoteExplorerServerDlg::OnPaint()
 HCURSOR CRemoteExplorerServerDlg::OnQueryDragIcon()
 {
     return static_cast<HCURSOR>(m_hIcon);
+}
+
+void CRemoteExplorerServerDlg::InitListCtrl()
+{
+    CRect rect;
+    listCtrl.GetWindowRect(&rect);
+    listCtrl.SetExtendedStyle(LVS_EX_GRIDLINES | LVS_EX_FULLROWSELECT);
+    const double kRate[4] = { 0.15,0.10,0.25,0.5 };
+    const CString kColumnName[4] = { _T("IP"),_T("PORTNUM"),_T("MESSAGE"),_T("CURRENT FOLDER") };
+    for (int columnIndex = 0; columnIndex < 4; columnIndex++)
+    {
+        listCtrl.InsertColumn(columnIndex, kColumnName[columnIndex], LVCFMT_LEFT, static_cast<int>(rect.Width()*kRate[columnIndex]));
+    }
 }

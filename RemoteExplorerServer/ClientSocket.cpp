@@ -31,30 +31,33 @@ void CClientSocket::OnReceive(int nErrorCode)
     GetPeerName(ipAddress, portNumber);
     if (Receive(receiveBuffer, sizeof(receiveBuffer)) > 0)
     {
-        CRemoteExplorerServerDlg* serverDialog = static_cast<CRemoteExplorerServerDlg*>(AfxGetMainWnd());
         CListenSocket* serverSocket = static_cast<CListenSocket*>(listenSocket);
         Data receiveData;
         receiveData.DeSerialize(receiveData, receiveBuffer);
-        CString filePath;
-        filePath = static_cast<CString>(receiveData.filePath);
-        CString port;
-        port.Format(_T("%d"), portNumber);
+        ServerLog serverLog;
+        serverLog.filePath = static_cast<CString>(receiveData.filePath);
+        serverLog.port.Format(_T("%d"), portNumber);
+        serverLog.ipAddress = ipAddress;
         switch (receiveData.protocol)
         {
         case kConnect:
-            serverDialog->list.AddString(ipAddress + _T("::") + port + (" CONNECT"));
+            serverLog.message = _T("CONNECT");
+            SetServerLog(serverLog);
             serverSocket->InitData(this, receiveData);
             break;
         case kUpdateTreeCtrl:
-            serverDialog->list.AddString(ipAddress + _T("::") + port + _T(" CLICK TREE ") + filePath);
+            serverLog.message = _T("UPDATE TREECTRL");
+            SetServerLog(serverLog);
             serverSocket->UpdateTreeCtrl(this, receiveData);
             break;
         case kUpdateListCtrl:
-            serverDialog->list.AddString(ipAddress + _T("::") + port + _T(" DOUBLE CLICK LISTCTRL ") + filePath);
+            serverLog.message = _T("UPDATE LISTCTRL");
+            SetServerLog(serverLog);
             serverSocket->UpdateListCtrl(this, receiveData);
             break;
         case kRequestData:
-            serverDialog->list.AddString(ipAddress + _T("::") + port + _T(" MAKE DATA ") + filePath + _T("\\*.*"));
+            serverLog.message = _T("REQUEST DATA");
+            SetServerLog(serverLog);
             serverSocket->ResponseData(this, receiveData);
             break;
         }
@@ -62,6 +65,14 @@ void CClientSocket::OnReceive(int nErrorCode)
     CSocket::OnReceive(nErrorCode);
 }
 
+void CClientSocket::SetServerLog(ServerLog serverLog)
+{
+    CRemoteExplorerServerDlg* serverDialog = static_cast<CRemoteExplorerServerDlg*>(AfxGetMainWnd());
+    serverDialog->listCtrl.InsertItem(0, serverLog.ipAddress);
+    serverDialog->listCtrl.SetItemText(0, 1, serverLog.port);
+    serverDialog->listCtrl.SetItemText(0, 2, serverLog.message);
+    serverDialog->listCtrl.SetItemText(0, 3, serverLog.filePath);
+}
 void CClientSocket::SetListenSocket(CAsyncSocket* socket)
 {
     listenSocket = socket;

@@ -1,5 +1,12 @@
 ﻿#pragma once
 
+struct ServerLog {
+    CString ipAddress;
+    CString port;
+    CString message;
+    CString filePath;
+};
+
 class CClientSocket : public CSocket
 {
 public:
@@ -8,7 +15,7 @@ public:
 
     virtual void OnClose(int nErrorCode);
     virtual void OnReceive(int nErrorCode);
-    void SetListenSocket(CAsyncSocket * pSocket);
-
+    void SetServerLog(ServerLog serverLog);
+    void SetListenSocket(CAsyncSocket * socket);
     CAsyncSocket* listenSocket;
 };
