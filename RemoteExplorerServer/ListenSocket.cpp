@@ -56,8 +56,13 @@ void CListenSocket::InitData(CSocket* clientSocket, Data& receiveData)
         {
             CString currentDriveName;
             TCHAR driveName[] = { TEXT('A') + alphabet, TEXT(':'), TEXT('\0') };
-            currentDriveName = driveName;
-            strcpy_s(receiveData.fileName, (CStringA)currentDriveName);
+            currentDriveName = static_cast<CString>(driveName);
+            strcpy_s(receiveData.fileName, static_cast<CStringA>(currentDriveName));
+            bool isDrive = CheckDrive(currentDriveName);
+            if (!isDrive)
+            {
+                continue;
+            }
             MakeAndResponseData(clientSocket, receiveData, kConnect, currentDriveName);
         }
     }
