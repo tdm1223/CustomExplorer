@@ -32,6 +32,8 @@ public:
     void GetSystemImage();
     afx_msg void OnNMDblclkList(NMHDR *pNMHDR, LRESULT *pResult);
     void UpdateListCtrl(const Data & file);
+    void FocusTreeCtrl(CString fileName);
+    void CollpaseAllNode(HTREEITEM hItem);
     void ShowData(const Data & data);
     afx_msg void OnHdnItemClickList(NMHDR *pNMHDR, LRESULT *pResult);
     static int CALLBACK CompareItem(const LPARAM lParam1, const LPARAM lParam2, const LPARAM lParamSort);
