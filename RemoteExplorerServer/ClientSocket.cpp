@@ -41,7 +41,7 @@ void CClientSocket::OnReceive(int nErrorCode)
         switch (receiveData.protocol)
         {
         case kConnect:
-            serverLog.message = _T("CONNECT");
+            serverLog.message=_T("CONNECT");
             SetServerLog(serverLog);
             serverSocket->InitData(this, receiveData);
             break;

@@ -14,7 +14,7 @@ public:
     virtual void OnAccept(int nErrorCode);
     void CloseClientSocket(CSocket * pClient);
     void InitData(CSocket * clientSocket, Data & file);
-    bool CheckDrive(CString & currentDriveName);
+    bool IsCorrectDrive(CString & currentDriveName);
     void UpdateTreeCtrl(CSocket * clientSocket, const Data & data);
     void ResponseData(CSocket * clientSocket, const Data & receiveData);
     void UpdateListCtrl(CSocket * clientSocket, const Data & data);

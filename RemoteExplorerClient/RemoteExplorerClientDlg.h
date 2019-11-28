@@ -7,21 +7,18 @@
 #include "afxcmn.h"
 #include <map>
 
-// CRemoteExplorerClientDlg 대화 상자
+struct SORTPARAM
+{
+    int sortColumn;
+    BOOL sortDirect;
+    CListCtrl *list;
+};
+
 class CRemoteExplorerClientDlg : public CDialogEx
 {
-    // 생성입니다.
 public:
-    struct SORTPARAM
-    {
-        int sortColumn;
-        bool sortDirect;
-        CListCtrl *list;
-    };
     const int kDirectoryIcon = 4;
-
-    CRemoteExplorerClientDlg(CWnd* pParent = NULL);	// 표준 생성자입니다.
-
+    CRemoteExplorerClientDlg(CWnd* pParent = NULL);
     afx_msg void OnBnClickedConnectButton();
     afx_msg void InitComboBox();
     void OnTvnSelchangedTree(NMHDR *pNMHDR, LRESULT *pResult);
@@ -33,7 +30,7 @@ public:
     afx_msg void OnNMDblclkList(NMHDR *pNMHDR, LRESULT *pResult);
     void UpdateListCtrl(const Data & file);
     void FocusTreeCtrl(CString fileName);
-    void CollpaseAllNode(HTREEITEM hItem);
+    void CollapseAllNode(HTREEITEM hItem);
     void ShowData(const Data & data);
     afx_msg void OnHdnItemClickList(NMHDR *pNMHDR, LRESULT *pResult);
     static int CALLBACK CompareItem(const LPARAM lParam1, const LPARAM lParam2, const LPARAM lParamSort);
@@ -41,7 +38,7 @@ public:
     void OnComboBoxChanged();
 
     std::map<CString, Data> clientCache; // 파일 경로와 그때의 Data를 가지고 있는 cache
-    HTREEITEM FindItem(const CString & fileName, HTREEITEM hRoot);
+    HTREEITEM FindItem(const CString fileName, HTREEITEM rootItem);
     CComboBox comboBox;
     BOOL sorting;
     CImageList imgSmallList;
@@ -56,11 +53,12 @@ public:
     BOOL isConnect;
     CTreeCtrl treeCtrl;
     CListCtrl listCtrl;
+    SORTPARAM initSort;
 
 protected:
-    virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 지원입니다.
+    void InitSort();
+    virtual void DoDataExchange(CDataExchange* pDX);
     HICON m_hIcon;
-    // 생성된 메시지 맵 함수
     virtual BOOL OnInitDialog();
     void InitListCtrl();
     afx_msg void OnSysCommand(UINT nID, LPARAM lParam);

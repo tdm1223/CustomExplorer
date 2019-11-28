@@ -1,6 +1,4 @@
-﻿// RemoteExplorerServerDlg.cpp : 구현 파일
-
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include "afxdialogex.h"
 #include "RemoteExplorerServer.h"
 #include "RemoteExplorerServerDlg.h"
@@ -72,7 +70,7 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 void CRemoteExplorerServerDlg::DoDataExchange(CDataExchange* pDX)
 {
     CDialogEx::DoDataExchange(pDX);
-    DDX_Control(pDX, IDC_LIST1, listCtrl);
+    DDX_Control(pDX, IDC_LIST, listCtrl);
 }
 
 BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)

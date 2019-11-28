@@ -1,10 +1,7 @@
-﻿// ListenSocket.cpp : 구현 파일입니다.
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include "RemoteExplorerServer.h"
 #include "ListenSocket.h"
 #include "ClientSocket.h"
-
-// CListenSocket
 
 CListenSocket::CListenSocket()
 {
@@ -56,9 +53,9 @@ void CListenSocket::InitData(CSocket* clientSocket, Data& receiveData)
         {
             CString currentDriveName;
             TCHAR driveName[] = { TEXT('A') + alphabet, TEXT(':'), TEXT('\0') };
-            currentDriveName = static_cast<CString>(driveName);
-            strcpy_s(receiveData.fileName, static_cast<CStringA>(currentDriveName));
-            bool isDrive = CheckDrive(currentDriveName);
+            currentDriveName = driveName;
+            strcpy_s(receiveData.fileName, (CStringA)currentDriveName);
+            bool isDrive = IsCorrectDrive(currentDriveName);
             if (!isDrive)
             {
                 continue;
@@ -69,7 +66,7 @@ void CListenSocket::InitData(CSocket* clientSocket, Data& receiveData)
 }
 
 // 올바른 드라이브인지 체크하는 함수
-bool CListenSocket::CheckDrive(CString& currentDriveName)
+bool CListenSocket::IsCorrectDrive(CString& currentDriveName)
 {
     ULARGE_INTEGER avail, free, total;
     avail.QuadPart = 0L;
@@ -138,19 +135,18 @@ void CListenSocket::MakeAndResponseData(CSocket* clientSocket, const Data& recei
             sendData.childType[count] = kDirectory;
             sendData.childSize[count] = 0;
         }
-        else if (finder.IsArchived())
+        else if(finder.IsArchived())
         {
             sendData.childType[count] = kFile;
-            ULONGLONG fileSize = finder.GetLength();
-            sendData.childSize[count] = fileSize;
+            sendData.childSize[count] = finder.GetLength();
         }
         CTime cTime;
-        finder.GetLastAccessTime(cTime);
-        CString timeConvertToString = cTime.Format("%Y-%m-%d %H:%M:%S");
+        finder.GetLastWriteTime(cTime);
+        CString timeConvertToString = cTime.Format("%Y-%m-%d %H:%M");
         strcpy_s(sendData.childAccessTime[count], static_cast<CStringA>(timeConvertToString));
 
         CString fileName = finder.GetFileName();
-        strcpy_s(sendData.child[count], static_cast<CStringA>(fileName));
+        strcpy_s(sendData.childName[count], static_cast<CStringA>(fileName));
         count++;
     }
 
@@ -172,7 +168,7 @@ void CListenSocket::MakeAndResponseData(CSocket* clientSocket, const Data& recei
     }
     strcpy_s(sendData.filePath, receiveData.filePath);
     strcpy_s(sendData.fileName, receiveData.fileName);
-
+    
     char sendBuffer[sizeof(sendData)];
     sendData.Serialize(sendData, sendBuffer);
     client->Send(sendBuffer, sizeof(sendBuffer), 0);
