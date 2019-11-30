@@ -23,26 +23,26 @@ void CConnectSocket::OnClose(int nErrorCode)
 
 void CConnectSocket::OnReceive(int nErrorCode)
 {
-    char buffer[sizeof(Data)];
+    char buffer[sizeof(Packet)];
     ::ZeroMemory(buffer, sizeof(buffer));
     if (Receive(buffer, sizeof(buffer), 0) > 0)
     {
         CRemoteExplorerClientDlg* clientDialog = static_cast<CRemoteExplorerClientDlg*>(AfxGetMainWnd());
-        Data receiveData;
-        receiveData.DeSerialize(receiveData, buffer);
-        switch (receiveData.protocol)
+        Packet receivePacket;
+        receivePacket.DeSerialize(buffer);
+        switch (receivePacket.messageType)
         {
         case kConnect:
-            clientDialog->InitTreeCtrl(receiveData);
+            clientDialog->InitTreeCtrl(receivePacket);
             break;
         case kUpdateTreeCtrl:
-            clientDialog->UpdateTreeCtrl(receiveData);
+            clientDialog->UpdateTreeCtrl(receivePacket);
             break;
         case kUpdateListCtrl:
-            clientDialog->UpdateListCtrl(receiveData);
+            clientDialog->UpdateListCtrl(receivePacket);
             break;
         case kRequestData:
-            clientDialog->ShowData(receiveData);
+            clientDialog->ShowData(receivePacket.data);
             break;
         default: break;
         }

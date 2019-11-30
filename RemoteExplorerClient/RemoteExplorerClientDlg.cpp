@@ -56,10 +56,10 @@ void CRemoteExplorerClientDlg::OnBnClickedConnectButton()
     }
     else
     {
-        Data sendData;
-        sendData.protocol = kConnect;
-        char sendBuffer[sizeof(sendData)];
-        sendData.Serialize(sendData, sendBuffer);
+        Packet sendPacket;
+        sendPacket.messageType = kConnect;
+        char sendBuffer[sizeof(Packet)];
+        sendPacket.Serialize(sendBuffer);
         connectSocket.Send(sendBuffer, sizeof(sendBuffer), 0);
         AfxMessageBox(_T("서버 연결 성공"));
     }
@@ -108,49 +108,49 @@ void CRemoteExplorerClientDlg::OnTvnSelchangedTree(NMHDR *pNMHDR, LRESULT *pResu
         listCtrl.DeleteAllItems();
     }
 
-    Data selectedData;
-    strcpy_s(selectedData.fileName, static_cast<CStringA>(fileName));
-    strcpy_s(selectedData.filePath, static_cast<CStringA>(filePath));
+    Packet sendPacket;
+    strcpy_s(sendPacket.data.fileName, static_cast<CStringA>(fileName));
+    strcpy_s(sendPacket.data.filePath, static_cast<CStringA>(filePath));
 
     if (clientCache.find(filePath) == clientCache.end())
     {
-        selectedData.protocol = kUpdateTreeCtrl; // 트리뷰에 그려져있지 않다면 트리뷰 갱신
+        sendPacket.messageType = kUpdateTreeCtrl; // 트리뷰에 그려져있지 않다면 트리뷰 갱신
     }
     else
     {
-        selectedData.protocol = kUpdateListCtrl; // 트리뷰에 이미 그려져있을땐 리스트뷰만 갱신
+        sendPacket.messageType = kUpdateListCtrl; // 트리뷰에 이미 그려져있을땐 리스트뷰만 갱신
     }
 
-    char buffer[sizeof(selectedData)];
-    selectedData.Serialize(selectedData, buffer);
-    connectSocket.Send(buffer, sizeof(buffer));
+    char sendBuffer[sizeof(Packet)];
+    sendPacket.Serialize(sendBuffer);
+    connectSocket.Send(sendBuffer, sizeof(sendBuffer));
     *pResult = 0;
 }
 
 // treeCtrl을 그려주는 함수
-void CRemoteExplorerClientDlg::UpdateTreeCtrl(const Data& receiveData)
+void CRemoteExplorerClientDlg::UpdateTreeCtrl(const Packet& receivePacket)
 {
     CString fileName;
-    fileName = static_cast<CString>(receiveData.fileName);
+    fileName = static_cast<CString>(receivePacket.data.fileName);
     HTREEITEM hItem = FindItem(fileName, treeCtrl.GetRootItem());
     CString filePath;
-    filePath = static_cast<CString>(receiveData.filePath);
+    filePath = static_cast<CString>(receivePacket.data.filePath);
 
-    clientCache[filePath] = receiveData;
-    for (int childIndex = 0; childIndex < receiveData.childLength; childIndex++)
+    clientCache[filePath] = receivePacket.data;
+    for (int childIndex = 0; childIndex < receivePacket.data.childLength; childIndex++)
     {
         CString childName;
-        childName = receiveData.childName[childIndex];
+        childName = receivePacket.data.childName[childIndex];
         SHFILEINFO shFileInfo;
         SHGetFileInfo(childName, 0, &shFileInfo, sizeof(SHFILEINFO),
             SHGFI_USEFILEATTRIBUTES | SHGFI_ICON);
-        if (receiveData.childType[childIndex] == kDirectory)
+        if (receivePacket.data.childType[childIndex] == kDirectory)
         {
             treeCtrl.InsertItem(childName, kDirectoryIcon, kDirectoryIcon, hItem);
         }
     }
 
-    DrawListCtrl(receiveData);
+    DrawListCtrl(receivePacket.data);
 
     for (int listCtrlItem = 0; listCtrlItem < listCtrl.GetItemCount(); listCtrlItem++)
     {
@@ -180,17 +180,17 @@ void CRemoteExplorerClientDlg::AddVirtualFolder(const CString filePath)
 }
 
 // listCtrl을 그려주는 함수
-void CRemoteExplorerClientDlg::DrawListCtrl(const Data& data)
+void CRemoteExplorerClientDlg::DrawListCtrl(const Data& receivePacket)
 {
     CString childPath;
     CString childName;
     CString childSize;
     CString childType;
     CString childAccessTime;
-    for (int childIndex = 0; childIndex < data.childLength; childIndex++)
+    for (int childIndex = 0; childIndex < receivePacket.childLength; childIndex++)
     {
-        childPath = static_cast<CString>(data.filePath);
-        childName = static_cast<CString>(data.childName[childIndex]);
+        childPath = static_cast<CString>(receivePacket.filePath);
+        childName = static_cast<CString>(receivePacket.childName[childIndex]);
         if (childPath.GetAt(childPath.GetLength() - 1) == '*')
         {
             childPath = childPath.Left(childPath.GetLength() - 4);
@@ -202,7 +202,7 @@ void CRemoteExplorerClientDlg::DrawListCtrl(const Data& data)
         SHGetFileInfo(childName, 0, &shFileInfo, sizeof(SHFILEINFO),
             SHGFI_USEFILEATTRIBUTES | SHGFI_ICON);
 
-        switch (data.childType[childIndex])
+        switch (receivePacket.childType[childIndex])
         {
         case kDirectory:
             childType = _T("Directory");
@@ -210,22 +210,22 @@ void CRemoteExplorerClientDlg::DrawListCtrl(const Data& data)
             break;
         case kFile:
             childType = _T("File");
-            if ((data.childSize[childIndex] >> 10) > 1)
+            if ((receivePacket.childSize[childIndex] >> 10) > 1)
             {
-                childSize.Format(_T("%d KB"), data.childSize[childIndex] >> 10);
+                childSize.Format(_T("%d KB"), receivePacket.childSize[childIndex] >> 10);
             }
             else
             {
-                childSize.Format(_T("%d B"), data.childSize[childIndex]);
+                childSize.Format(_T("%d B"), receivePacket.childSize[childIndex]);
             }
             break;
         case kDisk:
             childType = _T("Disk");
             break;
         }
-        childAccessTime = static_cast<CString>(data.childAccessTime[childIndex]);
+        childAccessTime = static_cast<CString>(receivePacket.childAccessTime[childIndex]);
 
-        if (data.childType[childIndex] == kDirectory)
+        if (receivePacket.childType[childIndex] == kDirectory)
         {
             listCtrl.InsertItem(0, childName, kDirectoryIcon);
         }
@@ -240,24 +240,26 @@ void CRemoteExplorerClientDlg::DrawListCtrl(const Data& data)
     }
 
     CString filePath;
-    filePath = static_cast<CString>(data.filePath);
+    filePath = static_cast<CString>(receivePacket.filePath);
     if (filePath.GetAt(filePath.GetLength() - 1) == '*')
     {
         filePath = filePath.Left(filePath.GetLength() - 4);
     }
-    if (data.fileType == kDirectory)
+    if (receivePacket.fileType == kDirectory)
     {
         AddVirtualFolder(filePath);
     }
 }
 
 // 처음 연결했을때 받아온 데이터를 CtreeCtrl에 뿌려주는 함수
-void CRemoteExplorerClientDlg::InitTreeCtrl(const Data& receiveData)
+void CRemoteExplorerClientDlg::InitTreeCtrl(const Packet& receiveData)
 {
     SHFILEINFO shFileInfo;
-    SHGetFileInfo(static_cast<CString>(receiveData.filePath), 0, &shFileInfo, sizeof(SHFILEINFO)
+    SHGetFileInfo(static_cast<CString>(receiveData.data.filePath), 0, &shFileInfo, sizeof(SHFILEINFO)
         , SHGFI_USEFILEATTRIBUTES | SHGFI_ICON);
-    treeCtrl.InsertItem(static_cast<CString>(receiveData.fileName), shFileInfo.iIcon, shFileInfo.iIcon);
+    sizeof(Data);
+
+    treeCtrl.InsertItem(static_cast<CString>(receiveData.data.fileName), shFileInfo.iIcon, shFileInfo.iIcon);
 }
 
 // 시스템 이미지 초기화하는 함수
@@ -278,7 +280,7 @@ void CRemoteExplorerClientDlg::OnNMDblclkList(NMHDR *pNMHDR, LRESULT *pResult)
     LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
     if (pNMItemActivate->iItem != -1)
     {
-        Data sendData;
+        Packet sendPacket;
         CString fileName = listCtrl.GetItemText(pNMItemActivate->iItem, 0);
         CString filePath = listCtrl.GetItemText(pNMItemActivate->iItem, 1);
         CString clientCacheKey;
@@ -286,35 +288,35 @@ void CRemoteExplorerClientDlg::OnNMDblclkList(NMHDR *pNMHDR, LRESULT *pResult)
         // 캐시에 없을 경우 데이터 요청
         if (clientCache.find(clientCacheKey) == clientCache.end())
         {
-            sendData.protocol = kRequestData;
-            strcpy_s(sendData.filePath, static_cast<CStringA>(filePath));
-            strcpy_s(sendData.fileName, static_cast<CStringA>(fileName));
+            sendPacket.messageType = kRequestData;
+            strcpy_s(sendPacket.data.filePath, static_cast<CStringA>(filePath));
+            strcpy_s(sendPacket.data.fileName, static_cast<CStringA>(fileName));
         }
         // 캐시에 있다면 화면 요청
         else
         {
             filePath += _T("\\*.*");
-            strcpy_s(sendData.filePath, static_cast<CStringA>(filePath));
-            sendData.protocol = kUpdateListCtrl;
+            strcpy_s(sendPacket.data.filePath, static_cast<CStringA>(filePath));
+            sendPacket.messageType = kUpdateListCtrl;
             listCtrl.DeleteAllItems();
         }
 
-        char sendBuffer[sizeof(Data)];
-        sendData.Serialize(sendData, sendBuffer);
+        char sendBuffer[sizeof(sendPacket)];
+        sendPacket.Serialize(sendBuffer);
         connectSocket.Send(sendBuffer, sizeof(sendBuffer));
     }
     *pResult = 0;
 }
 
 // listCtrl을 업데이트 하는 함수
-void CRemoteExplorerClientDlg::UpdateListCtrl(const Data& receiveData)
+void CRemoteExplorerClientDlg::UpdateListCtrl(const Packet& receiveData)
 {
-    Data sendData;
+    Packet sendPacket;
     CString filePath;
-    filePath = static_cast<CString>(receiveData.filePath);
+    filePath = static_cast<CString>(receiveData.data.filePath);
 
-    sendData = clientCache[filePath];
-    DrawListCtrl(sendData);
+    sendPacket.data = clientCache[filePath];
+    DrawListCtrl(sendPacket.data);
 
     for (int listCtrlItem = 0; listCtrlItem < listCtrl.GetItemCount(); listCtrlItem++)
     {
@@ -325,7 +327,7 @@ void CRemoteExplorerClientDlg::UpdateListCtrl(const Data& receiveData)
 
     // 트리뷰에도 반영
     CString fileName;
-    fileName = static_cast<CString>(sendData.fileName);
+    fileName = static_cast<CString>(sendPacket.data.fileName);
     FocusTreeCtrl(fileName);
 }
 

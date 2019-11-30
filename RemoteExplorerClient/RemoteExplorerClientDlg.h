@@ -22,13 +22,13 @@ public:
     afx_msg void OnBnClickedConnectButton();
     afx_msg void InitComboBox();
     void OnTvnSelchangedTree(NMHDR *pNMHDR, LRESULT *pResult);
-    void UpdateTreeCtrl(const Data & file);
+    void UpdateTreeCtrl(const Packet & file);
     void AddVirtualFolder(const CString filePath);
     void DrawListCtrl(const Data & data);
-    void InitTreeCtrl(const Data & data);
+    void InitTreeCtrl(const Packet & data);
     void GetSystemImage();
     afx_msg void OnNMDblclkList(NMHDR *pNMHDR, LRESULT *pResult);
-    void UpdateListCtrl(const Data & file);
+    void UpdateListCtrl(const Packet & file);
     void FocusTreeCtrl(CString fileName);
     void CollapseAllNode(HTREEITEM hItem);
     void ShowData(const Data & data);

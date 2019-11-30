@@ -2,12 +2,12 @@
 
 Data::Data()
 {
-    ::ZeroMemory(fileName, sizeof(fileName));
-    ::ZeroMemory(child, sizeof(child));
-    ::ZeroMemory(filePath, sizeof(filePath));
-    ::ZeroMemory(childSize, sizeof(childSize));
     ::ZeroMemory(childType, sizeof(childType));
+    ::ZeroMemory(fileName, sizeof(fileName));
+    ::ZeroMemory(filePath, sizeof(filePath));
+    ::ZeroMemory(childName, sizeof(childName));
     ::ZeroMemory(childAccessTime, sizeof(childAccessTime));
+    ::ZeroMemory(childSize, sizeof(childSize));
     childLength = 0;
     fileSize = 0;
 }
@@ -15,14 +15,4 @@ Data::Data()
 
 Data::~Data()
 {
-}
-
-void Data::Serialize(Data& file, char* buffer)
-{
-    memcpy(buffer, &file, sizeof(file));
-}
-
-void Data::DeSerialize(Data& file, char* buffer)
-{
-    memcpy(&file, buffer, sizeof(file));
 }

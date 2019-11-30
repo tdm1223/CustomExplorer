@@ -4,6 +4,7 @@
 
 //#include "Data.h"
 #include "../Data/Data.h"
+#include"../Data/Packet.h"
 class CConnectSocket : public CSocket
 {
 public:

@@ -25,40 +25,40 @@ void CClientSocket::OnReceive(int nErrorCode)
     CString listBoxString = _T("");
     CString ipAddress = _T("");
     UINT portNumber = 0;
-    char receiveBuffer[sizeof(Data)];
+    char receiveBuffer[sizeof(Packet)];
     ::ZeroMemory(receiveBuffer, sizeof(receiveBuffer));
 
     GetPeerName(ipAddress, portNumber);
     if (Receive(receiveBuffer, sizeof(receiveBuffer)) > 0)
     {
         CListenSocket* serverSocket = static_cast<CListenSocket*>(listenSocket);
-        Data receiveData;
-        receiveData.DeSerialize(receiveData, receiveBuffer);
+        Packet receivePacket;
+        receivePacket.DeSerialize(receiveBuffer);
         ServerLog serverLog;
-        serverLog.filePath = static_cast<CString>(receiveData.filePath);
+        serverLog.filePath = static_cast<CString>(receivePacket.data.filePath);
         serverLog.port.Format(_T("%d"), portNumber);
         serverLog.ipAddress = ipAddress;
-        switch (receiveData.protocol)
+        switch (receivePacket.messageType)
         {
         case kConnect:
-            serverLog.message=_T("CONNECT");
+            serverLog.message = _T("CONNECT");
             SetServerLog(serverLog);
-            serverSocket->InitData(this, receiveData);
+            serverSocket->InitData(this, receivePacket);
             break;
         case kUpdateTreeCtrl:
             serverLog.message = _T("UPDATE TREECTRL");
             SetServerLog(serverLog);
-            serverSocket->UpdateTreeCtrl(this, receiveData);
+            serverSocket->UpdateTreeCtrl(this, receivePacket);
             break;
         case kUpdateListCtrl:
             serverLog.message = _T("UPDATE LISTCTRL");
             SetServerLog(serverLog);
-            serverSocket->UpdateListCtrl(this, receiveData);
+            serverSocket->UpdateListCtrl(this, receivePacket);
             break;
         case kRequestData:
             serverLog.message = _T("REQUEST DATA");
             SetServerLog(serverLog);
-            serverSocket->ResponseData(this, receiveData);
+            serverSocket->ResponseData(this, receivePacket);
             break;
         }
     }
